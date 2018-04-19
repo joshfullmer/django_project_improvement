@@ -1,53 +1,68 @@
-from django.shortcuts import render, get_object_or_404, redirect
-from django.http import Http404
-from django.utils import timezone
-from operator import attrgetter
-from datetime import datetime
 from django.core.exceptions import ObjectDoesNotExist
-from .models import *
-from .forms import *
+from django.shortcuts import render, get_object_or_404, redirect
+
+
+from . import models
+from . import forms
 
 
 def menu_list(request):
-    menus = Menu.objects.all().prefetch_related('items')
+    menus = models.Menu.objects.all().prefetch_related('items')
     return render(request,
                   'menu/list_all_current_menus.html',
                   {'menus': menus})
 
 
 def menu_detail(request, pk):
-    menu = Menu.objects.get_object_or_404(pk=pk)
+    menu = get_object_or_404(models.Menu, pk=pk)
     return render(request, 'menu/menu_detail.html', {'menu': menu})
 
 
 def item_detail(request, pk):
-    item = Item.objects.get_object_or_404(pk=pk)
-    return render(request, 'menu/detail_item.html', {'item': item})
+    item = get_object_or_404(models.Item.objects
+                                        .prefetch_related('ingredients')
+                                        .select_related(), pk=pk)
+    return render(request, 'menu/item_detail.html', {'item': item})
 
 
 def create_new_menu(request):
-    form = MenuForm()
+    form = forms.MenuForm()
     if request.method == "POST":
-        form = MenuForm(request.POST)
+        form = forms.MenuForm(request.POST)
         if form.is_valid():
-            menu = form.save(commit=False)
-            menu.created_date = timezone.now()
-            menu.save()
-            return redirect('menu_detail', pk=menu.pk)
-    return render(request, 'menu/menu_edit.html', {'form': form})
+            menu = form.save()
+            return redirect('menu:menu_detail', pk=menu.pk)
+    return render(request, 'menu/menu_form.html', {'form': form})
 
 
 def edit_menu(request, pk):
-    menu = get_object_or_404(Menu, pk=pk)
-    items = Item.objects.all()
+    try:
+        menu = models.Menu.objects.get(pk=pk)
+    except ObjectDoesNotExist:
+        menu = None
+    form = forms.MenuForm(instance=menu)
     if request.method == "POST":
-        menu.season = request.POST.get('season', '')
-        menu.expiration_date = datetime.strptime(
-            request.POST.get('expiration_date', ''), '%m/%d/%Y')
-        menu.items = request.POST.get('items', '')
-        menu.save()
+        form = forms.MenuForm(request.POST, instance=menu)
+        if form.is_valid():
+            menu = form.save()
+            return redirect('menu:menu_detail', pk=menu.pk)
 
-    return render(request, 'menu/change_menu.html', {
+    return render(request, 'menu/menu_form.html', {
         'menu': menu,
-        'items': items,
-        })
+        'form': form, })
+
+
+def edit_item(request, pk):
+    try:
+        item = models.Item.objects.prefetch_related('ingredients').get(pk=pk)
+    except ObjectDoesNotExist:
+        item = None
+    form = forms.ItemForm(instance=item)
+    if request.method == 'POST':
+        form = forms.ItemForm(request.POST, instance=item)
+        if form.is_valid():
+            item = form.save()
+            return redirect('menu:item_detail', pk=item.pk)
+    return render(request,
+                  'menu/item_form.html',
+                  {'item': item, 'form': form})
