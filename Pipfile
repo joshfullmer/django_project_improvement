@@ -10,8 +10,7 @@ name = "pypi"
 django = "*"
 coverage = "*"
 django-debug-toolbar = "*"
-selenium = "*"
-sqlparse = "*"
+django-nose = "*"
 
 
 [dev-packages]

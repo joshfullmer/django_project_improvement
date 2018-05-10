@@ -19,9 +19,7 @@ def menu_detail(request, pk):
 
 
 def item_detail(request, pk):
-    item = get_object_or_404(models.Item.objects
-                                        .prefetch_related('ingredients')
-                                        .select_related(), pk=pk)
+    item = get_object_or_404(models.Item.objects.select_related(), pk=pk)
     return render(request, 'menu/item_detail.html', {'item': item})
 
 
@@ -54,7 +52,7 @@ def edit_menu(request, pk):
 
 def edit_item(request, pk):
     try:
-        item = models.Item.objects.prefetch_related('ingredients').get(pk=pk)
+        item = models.Item.objects.get(pk=pk)
     except ObjectDoesNotExist:
         item = None
     form = forms.ItemForm(instance=item)
